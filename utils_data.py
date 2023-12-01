@@ -32,6 +32,13 @@ class Synthon_handler:
         reaction_df: Optional[pd.DataFrame] = None,
         synthon_df: Optional[pd.DataFrame] = None,
         sub_dict: dict = None,
+        rxn_id_col: str = "reaction_id",
+        rxn_component_col: str = "components",
+        rxn_smirks_col: str = "Reaction",
+        rxn_smarts_cols: List[str] = ["R1", "R2", "R3", "R4"],
+        syn_smiles_col: str = "SMILES",
+        syn_id_col: str = "synton_id",
+        syn_num_col: str = "synton#",
     ) -> None:
         """
         Args:
@@ -61,7 +68,28 @@ class Synthon_handler:
         for df in (self.rxn_df, self.syn_df):
             if df is None:
                 raise ValueError("Must provide valid DataFrame or input files.")
-        self.sub_dict = sub_dict
+        attrs = [
+            "sub_dict",
+            "rxn_id_col",
+            "rxn_component_col",
+            "rxn_smirks_col",
+            "rxn_smarts_cols",
+            "syn_smiles_col",
+            "syn_id_col",
+            "syn_num_col",
+        ]
+        vars = [
+            sub_dict,
+            rxn_id_col,
+            rxn_component_col,
+            rxn_smirks_col,
+            rxn_smarts_cols,
+            syn_smiles_col,
+            syn_id_col,
+            syn_num_col,
+        ]
+        for attr, var in zip(attrs, vars):
+            setattr(self, attr, var)
 
     def get_n_component_rxn_id(self, n_component: int) -> list:
         """
@@ -71,7 +99,7 @@ class Synthon_handler:
             n_component: Number of components of reactions to be selected.
         """
 
-        res = self.rxn_df.loc[self.rxn_df["components"] == n_component, "reaction_id"].tolist()
+        res = self.rxn_df.loc[self.rxn_df[self.rxn_component_col] == n_component, self.rxn_id_col].tolist()
         if len(res) == 0:
             raise ValueError(f"There is no {n_component}-component reaction.")
         return res
@@ -92,12 +120,16 @@ class Synthon_handler:
         """
 
         rxn_ids = self.get_n_component_rxn_id(n_component)
-        temp = self.syn_df[self.syn_df["reaction_id"].isin(rxn_ids)].copy()
+        temp = self.syn_df[self.syn_df[self.rxn_id_col].isin(rxn_ids)].copy()
         if cleanup:
-            temp.loc[:, "SMILES"] = temp["SMILES"].apply(cleanup_smiles)
+            temp.loc[:, self.syn_smiles_col] = temp[self.syn_smiles_col].apply(cleanup_smiles)
         if self.sub_dict is not None:
-            temp.loc[:, "SMILES"] = temp["SMILES"].apply(substitute_smiles_atoms, sub_dict=self.sub_dict)
-        return [(sid, smiles) for sid, smiles in zip(temp["synton_id"].tolist(), temp["SMILES"].tolist())]
+            temp.loc[:, self.syn_smiles_col] = temp[self.syn_smiles_col].apply(
+                substitute_smiles_atoms, sub_dict=self.sub_dict
+            )
+        return [
+            (sid, smiles) for sid, smiles in zip(temp[self.syn_id_col].tolist(), temp[self.syn_smiles_col].tolist())
+        ]
 
     def group_synthon_by_rxn_id(
         self,
@@ -150,37 +182,43 @@ class Synthon_handler:
                 rxn_ids.extend(self.get_n_component_rxn_id(n))
         for rxn_id in rxn_ids:
             output[rxn_id] = {}
-            temp = self.syn_df[self.syn_df["reaction_id"] == rxn_id].copy()
+            temp = self.syn_df[self.syn_df[self.rxn_id_col] == rxn_id].copy()
             temp.drop_duplicates(
-                subset=["synton_id"], inplace=True
+                subset=[self.syn_id_col], inplace=True
             )  # deduplicate here, because some synthon lists have duplicate entries.
+            # TODO: Pre-process the synthon files to deduplicate across sub-reactions.
 
             if cleanup:
-                temp.loc[:, "SMILES"] = temp["SMILES"].apply(cleanup_smiles)
+                temp.loc[:, self.syn_smiles_col] = temp[self.syn_smiles_col].apply(cleanup_smiles)
             if sub_dummy_atom:
-                temp.loc[:, "SMILES"] = temp["SMILES"].apply(substitute_smiles_atoms, sub_dict=self.sub_dict)
+                temp.loc[:, self.syn_smiles_col] = temp[self.syn_smiles_col].apply(
+                    substitute_smiles_atoms, sub_dict=self.sub_dict
+                )
 
             # Infer the number of components.
-            component_labels = sorted(temp["synton#"].unique())
+            component_labels = sorted(temp[self.syn_num_col].unique())
+            # Sorted here, but still relies on the synthon order being labeld sensibly.
 
             for i, comp_label in enumerate(component_labels):
-                sub_df = temp[temp["synton#"] == comp_label]
+                sub_df = temp[temp[self.syn_num_col] == comp_label]
                 if limit is not None and len(sub_df) > limit:
                     if random_seed is None:
                         sub_df = sub_df.head(limit)
                     else:
                         sub_df = sub_df.sample(limit, random_state=random_seed, axis=0)
                 output[rxn_id][i] = [
-                    (sid, smiles) for sid, smiles in zip(sub_df["synton_id"].tolist(), sub_df["SMILES"].tolist())
+                    (sid, smiles)
+                    for sid, smiles in zip(sub_df[self.syn_id_col].tolist(), sub_df[self.syn_smiles_col].tolist())
                 ]
         return output
 
+    # TODO: RENAME to `get_smirks_by_id`
     def get_reaction_smirks_by_id(self, rxn_id: str, sub_dummy_atom: bool = False) -> str:
         """
         Get the reaction SMIRKS by reaction id.
         """
 
-        smirks = self.rxn_df.loc[self.rxn_df["reaction_id"] == rxn_id, "Reaction"].item()
+        smirks = self.rxn_df.loc[self.rxn_df[self.rxn_id_col] == rxn_id, self.rxn_smirks_col].item()
 
         if sub_dummy_atom:
             smirks = substitute_smiles_atoms(smirks, self.sub_dict)
@@ -190,10 +228,9 @@ class Synthon_handler:
     def get_reactant_smarts_by_id(self, rxn_id: str) -> List[str]:
         """ """
 
-        row = self.rxn_df.loc[self.rxn_df["reaction_id"] == rxn_id]
+        row = self.rxn_df.loc[self.rxn_df[self.rxn_id_col] == rxn_id]
         smarts = []
-        for i in range(1, 5):  # max 4 component reaction in Enamine REAL so far.
-            col_name = f"R{i}"
+        for col_name in self.rxn_smarts_cols:
             _smarts = row[col_name].item()
             if pd.isna(_smarts) or _smarts == "-":
                 break
@@ -203,7 +240,7 @@ class Synthon_handler:
 
     def get_number_of_components(self, rxn_id: str) -> int:
 
-        return int(self.rxn_df.loc[self.rxn_df["reaction_id"] == rxn_id, "components"].item())
+        return int(self.rxn_df.loc[self.rxn_df[self.rxn_id_col] == rxn_id, self.rxn_component_col].item())
 
     def get_rxn_id_by_synthon(self, syn_id: Union[int, str]) -> str:
         """
@@ -213,12 +250,12 @@ class Synthon_handler:
         if not isinstance(syn_id, int):
             syn_id = int(syn_id)
 
-        return self.syn_df.loc[self.syn_df["synton_id"] == syn_id, "reaction_id"].tolist()
+        return self.syn_df.loc[self.syn_df[self.syn_id_col] == syn_id, self.rxn_id_col].tolist()
 
     def get_synthon_smi(self, syn_id: int) -> str:
 
         syn_id = int(syn_id)
-        return self.syn_df.loc[self.syn_df["synton_id"] == syn_id, "SMILES"].tolist()[0]
+        return self.syn_df.loc[self.syn_df[self.syn_id_col] == syn_id, self.syn_smiles_col].tolist()[0]
 
 
 class ResultAnalysis:
