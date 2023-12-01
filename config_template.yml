@@ -1,0 +1,74 @@
+# Set experiment name and input data.
+exp_name:
+synthon_file:
+reaction_file:
+query_molecule:
+output_parent_dir:
+
+# Directories for retrieving pre-generated data.
+synthon_conf_dir: 
+synthon_id_map_dir:
+grouped_synthon_dir:
+synthon_score_dir:
+
+limit_reactions: # Limit to these reactions for debugging. Set to `null` to include all reactions.
+synthon_limit: # Limit the number of synthons to be used for each reaction (applies to all reactants). `null` for unlimited synthons for each reaction.
+random_seed: # Seed for random sampling from each synthon list.
+enum_isomers: true # Whether to apply FLIPPER to enumerate stereoisomers during ground truth library enumeration.
+warts_id_sep: # Separator used by Flipper/OMEGA.
+sass_id_sep: # Separator used to join base molecule ids in SASS. Must be different from `warts_id_sep`.
+
+tasks: [] # A set of steps to be executed by the query script. Valid steps include: ['ground_truth', 'gen_synthon_conformers', 'score_synthons', 'select_synthons', 'combine_products', 'instantiate_products', 'rescore_products'].
+
+atom_substitution_dict: # In the format of [src_atom, src_isotope, dst_atom, dst_isotope]
+  - ['U', 0, 'C', 13]
+  - ['Np', 0, 'C', 14]
+  - ['Pu', 0, 'C', 15]
+  - ['Am', 0, 'C', 16]
+
+synthon_connectors: ['U', 'Np', 'Pu', 'Am'] # Typical connector atoms used in Enamine synthon files.
+frag_connectors: ['He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn', 'Og']
+
+
+# Query fragmentation options
+n_fragments: [2, 3] # Numbers of fragments to generate from a query. The values also determine which reactions to include from the Enamine file (n-component reactions).
+heavy_atom_limit: 5 # Number of heavy atoms of fragments below which it will not be considered as a query fragment for matching.
+
+# ROCS options
+align_on_dummy_atom: true # Whether to enable custom color features for connector atoms.
+custom_color_ff: ['[U]', '[Np]', '[Pu]', '[Am]'] 
+custom_color_weight: -1
+custom_color_radius: 1
+color_interaction_type: gaussian # 'gaussian' or 'discrete'.
+scale_weight_per_atom: true # Whether to normalize the weight of color feature of each connector atom in synthons with multiple connector atoms.
+
+cross_scoring: false # Whether to run ROCS for ring-synthons against linear fragments, and vice versa. Otherwise only run ROCS for ring-synthons against ring-fragments, linear-synthons against linear-fragments.
+
+# OMEGA options
+synthon_omega_max_conf: 50 # Max number of conf returned for each molecule.
+synthon_omega_max_time: 120 # Max time allowed for conformer generation on one molecule.
+synthon_omega_energy: 10 # max energy above min energy conformer allowed.
+product_omega_max_conf: 500
+product_omega_max_time: 300
+product_omega_energy: 10
+conf_file_format: oez
+
+# Synthon selection options
+top_m: 20000 # Number of products to be instantiated and scored by ROCS.
+top_s_frac: 1 # Top_s fraction of synthons from each synthon-query ROCS scores to use for final product selection.
+weight_factor: 0 # Factor to up-weight color_score component of the ROCS score. Currently not used.
+instantiate_chunk_size: 2000 # how many isomers to put in one chunk during selected products instantiation.
+
+# To deprecate
+non_frag_synthon_rank_method: tanimoto # tanimoto, ftversky
+
+# Cluster parameters for large queries
+ncpu_for_instantiation: 14 
+queue_for_instantiation: short
+
+ncpu_for_select_synthons: 1
+queue_for_select_synthons: short
+queue_for_combine_products: short
+queue_for_rocs_scoring: short
+queue_for_gen_synthon_conformers: short
+ncpu_for_product_conformer_gen: 1

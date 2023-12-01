@@ -1,0 +1,5 @@
+**/__pycache__/
+**/*.ipynb_checkpoints/
+*.ipynb
+!analyze_results.ipynb
+**/*logs/
