@@ -1,0 +1,1 @@
+Provided here is a set of example reactions and synthons. Users should use their own reaction/synthon data that conforms to the format shown in the examples.
