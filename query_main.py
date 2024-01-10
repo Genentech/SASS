@@ -12,7 +12,6 @@ import sys
 
 # Third Party Library
 from openeye import oechem
-import ray
 import yaml
 
 # Genentech Library
@@ -32,6 +31,7 @@ from utils_query import (
     sample_synthon_conformers,
     validate_tasks,
 )
+
 
 os.environ["OE_LICENSE"] = ...
 
@@ -54,7 +54,7 @@ def parse_args():
         default=None,
         help=(
             "Parent directory to store the results in. Individual experiment",
-            " results wil be store under <output_parent_dir>/<exp_name>_<suffix>/",
+            " results wil be store under <output_parent_dir>/<exp_name>/",
         ),
     )
 
@@ -85,12 +85,6 @@ def parse_args():
     parser.add_argument("--map_id", "--map-id", action="store_true", help=("If set, maps synthon id to smiles."))
 
     parser.add_argument(
-        "--head_node",
-        type=str,
-        default=None,
-    )
-
-    parser.add_argument(
         "--reactions",
         nargs="*",
         type=str,
@@ -119,7 +113,7 @@ def main():
 
     n_fragments = config["n_fragments"]
 
-    rank_method = config["non_frag_synthon_rank_method"]  # TODO deprecate
+    rank_method = 'tanimoto'
     top_m = config["top_m"]
     reactions = args.reactions if args.reactions else config["limit_reactions"]
 
@@ -175,7 +169,6 @@ def main():
         color_patterns=dummy_patterns,
         rocs_num_hits=syn_limit * 3,  # this can also be used to limit the score list length.
         scale_weight_per_atom=config["scale_weight_per_atom"],
-        ray_head_node=args.head_node,
     )
 
     # Remaining config parameters.
@@ -380,7 +373,6 @@ def main():
         n = 0
         i = 0
         ostream = oechem.oemolostream(f"{ground_truth_prefix}_chunk_{i}.oeb.gz")
-        # 230811 Don't deduplicate. Should not have duplicate products.
         for rxn_id in reactions:
             smirks = shandler.get_reaction_smirks_by_id(rxn_id)
             reactants = grouped_synthons[rxn_id]
@@ -392,9 +384,8 @@ def main():
             )
 
             for prod in mp_gen_library(
-                reactants, smirks=smirks, ncpu=ncpu, enum_isomers=False, title_separator=sass_id_sep
+                reactants, smirks=smirks, ncpu=ncpu, enum_isomers=True, title_separator=sass_id_sep
             ):
-                # 231113 disabled `enum_isomers` due to out of memory.
                 n += 1
                 if n % 1000000 == 0:
                     print(f"Molecules enumerated: {n}")
@@ -441,7 +432,7 @@ def main():
 
             logging.info(f"Start {full_exp_name} synthon selection.")
 
-            # Compute aggregated ROCS scores for synthon combinations, then rank by rocs scores.
+            # Compute aggregated ROCS scores for synthon combinations, then rank by aggregated scores.
             logging.info(f"Start selecting top {top_m} synthon combinations.")
 
             synthon_score_dir = config["synthon_score_dir"]
