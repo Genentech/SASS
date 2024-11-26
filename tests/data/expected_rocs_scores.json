@@ -1,0 +1,106 @@
+{
+    "test_various_shape_color_func": {
+        "GetTanimoto": {
+            "GetColorTanimoto": {
+                "GetTanimoto": {
+                    "GetColorTanimoto": 0.6563754677772522,
+                    "None": 0.5588802099227905,
+                    "GetRefColorTversky": 0.7512810826301575
+                },
+                "GetRefTversky": {
+                    "GetColorTanimoto": 0.8585674986243248,
+                    "None": 0.7609093189239502,
+                    "GetRefColorTversky": 0.9533101916313171
+                }
+            },
+            "None": {
+                "GetTanimoto": {
+                    "GetColorTanimoto": 0.7133919596672058,
+                    "None": 0.6759262681007385,
+                    "GetRefColorTversky": 0.7537456378340721
+                },
+                "GetRefTversky": {
+                    "GetColorTanimoto": 0.8933940306305885,
+                    "None": 0.856201708316803,
+                    "GetRefColorTversky": 0.9337477311491966
+                }
+            },
+            "GetRefColorTversky": {
+                "GetTanimoto": {
+                    "GetColorTanimoto": 0.6476625204086304,
+                    "None": 0.44424134492874146,
+                    "GetRefColorTversky": 0.810603141784668
+                },
+                "GetRefTversky": {
+                    "GetColorTanimoto": 0.8567998111248016,
+                    "None": 0.6533786654472351,
+                    "GetRefColorTversky": 1.018923431634903
+                }
+            }
+        },
+        "GetRefTversky": {
+            "GetColorTanimoto": {
+                "GetTanimoto": {
+                    "GetColorTanimoto": 0.6565383672714233,
+                    "None": 0.5588802099227905,
+                    "GetRefColorTversky": 0.7512810826301575
+                },
+                "GetRefTversky": {
+                    "GetColorTanimoto": 0.8583065718412399,
+                    "None": 0.7609093189239502,
+                    "GetRefColorTversky": 0.9533101916313171
+                }
+            },
+            "None": {
+                "GetTanimoto": {
+                    "GetColorTanimoto": 0.7133919596672058,
+                    "None": 0.6761996150016785,
+                    "GetRefColorTversky": 0.7537456378340721
+                },
+                "GetRefTversky": {
+                    "GetColorTanimoto": 0.8933940306305885,
+                    "None": 0.8558617830276489,
+                    "GetRefColorTversky": 0.9337477311491966
+                }
+            },
+            "GetRefColorTversky": {
+                "GetTanimoto": {
+                    "GetColorTanimoto": 0.6476625204086304,
+                    "None": 0.44424134492874146,
+                    "GetRefColorTversky": 0.8097861111164093
+                },
+                "GetRefTversky": {
+                    "GetColorTanimoto": 0.8567998111248016,
+                    "None": 0.6533786654472351,
+                    "GetRefColorTversky": 1.019112765789032
+                }
+            }
+        }
+    },
+    "test_sp_simple_oeoverlay": {
+        "0": {
+            "0": 0.9777414202690125,
+            "1": 0.8907686471939087,
+            "2": 0.9222911596298218,
+            "3": 0.9372456073760986
+        },
+        "1": {
+            "0": 0.8335905075073242,
+            "1": 0.9557522535324097,
+            "2": 0.9062809944152832,
+            "3": 0.8855456113815308
+        },
+        "2": {
+            "0": 0.9799749851226807,
+            "1": 0.8918760418891907,
+            "2": 0.9213520884513855,
+            "3": 0.9383071660995483
+        },
+        "3": {
+            "0": 0.9635705351829529,
+            "1": 0.8755577802658081,
+            "2": 0.907020092010498,
+            "3": 0.9211344718933105
+        }
+    }
+}

@@ -1,0 +1,51 @@
+##################################################################
+# LINTING
+##################################################################
+
+[tool.black]
+line-length = 120
+
+##################################################################
+
+[tool.ruff]
+# see: https://docs.astral.sh/ruff/
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+# see: https://docs.astral.sh/ruff/linter/#rule-selection
+select = [
+    "A",   #  flake8-builtins
+    "ARG", #  flake8-unused-arguments
+    "C4",  #  flake8-comprehensions
+    "E",   #  pycodestyle
+    "F",   #  Pyflakes
+    "I",   #  isort
+    "ISC", #  flake8-implicit-str-concat
+    "PL",  #  Pylint
+    "PT",  #  flake8-pytest-style
+    "RUF", #  Ruff-specific
+    "TCH", #  flake8-type-checking
+]
+
+ignore = [
+    "PLR0913",   # Too many arguments to function call
+]
+
+[tool.ruff.lint.pylint]
+# see: https://docs.astral.sh/ruff/settings/#pylint
+max-branches = 12    # default: 12
+max-returns = 6      # default: 6
+max-statements = 50  # default: 50
+max-args = 6         # default: 5
+allow-magic-value-types = ["str", "bytes", "int"]  # default: ["str", "bytes"]
+
+[tool.ruff.lint.isort]
+# add additional in-house packages here so that isort
+# will correctly put them in the 3rd sorting block
+known-first-party = [
+  "sass*",
+]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = true
