@@ -1,24 +1,37 @@
 repos:
 - repo: https://github.com/psf/black
-  rev: 22.6.0
+  rev: 24.10.0
   hooks:
   - id: black
-    exclude: |
+    name: blacking project
+    exclude: |   # do not reformat cookiecutter files
             (?x)^(
                 setup.py|
                 docs/conf.py|
                 ([^\/]+subtasks)\/([^\/]+).py
             )$
-    language_version: python3.9
-
-- repo: https://github.com/PyCQA/flake8
-  rev: 6.1.0
+    language_version: python3.11
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  rev: "v0.7.1"
   hooks:
-  -   id: flake8
-      entry: pflake8
-      additional_dependencies: [pyproject-flake8]
-
-- repo: https://github.com/PyCQA/isort
-  rev: 5.12.0
+  - id: ruff
+    name: ruffing sass subdirectory
+    args: [--config, pyproject.toml]
+    exclude: |   # lint sass subdirectory
+            (?x)^((?!sass\/).*)$
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  rev: "v0.7.1"
   hooks:
-  -   id: isort
+  - id: ruff
+    name: ruffing tests subdirectory
+    args: [--config, tests/pyproject.toml]
+    exclude: |   # lint tests subdirectory
+            (?x)^((?!tests\/).*)$
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  rev: "v0.7.1"
+  hooks:
+  - id: ruff
+    name: ruffing scripts subdirectory
+    args: [--config, pyproject.toml]
+    exclude: |   # lint scripts subdirectory. This is not in default cdd_quickstart.
+            (?x)^((?!scripts\/).*)$

@@ -1,0 +1,104 @@
+# Common parameters
+query_molecule: null # Path to the query molecule file (in sdf or oeb format).
+clean_up_query: false # Whether to clean up the query molecule before fragmentation.
+tasks: ['score_synthons', 'rescore_products', 'get_product_poses'] # For more details, see the bottom of this file.
+top_m: 1000000 # Number of products to be re-scored by ROCS. Larger `top_m` will increase the time for rescoring. For searching the full Enamine 2024-02 library, set `top_m` to 1000000. For the 100 subset, set `top_m` to 10000.
+num_final_list: 10000 # Number of top re-scored product ids to store (as compressed pkl file).
+num_write_pose: 5000 # Number of top re-scored products poses to store (as sdf file). The actual number of compounds in the output file may be lower due to removal of duplicates.
+
+# Using pre-generated synthon conformers and data. The default here is the full Enamine 2024-02 library. 
+# For testing using a smaller subset, add `_100` suffix to the directory paths. i.e. `REAL_202402_synthon_conformers_100`.
+synthon_conf_dir: null
+synthon_data_file: null
+grouped_synthon_file: null
+
+# Specifying the library to use
+synthon_file: null
+reaction_file: null
+limit_reactions: null # Limit the reactions to use in the library. Set to `null` to include all reactions.
+synthon_limit: null  # Limit the number of synthons to be used for each component of a reaction. This parameter has no effect if using pre-generated grouped synthon data.
+random_seed: 63 # Seed for random sampling from each synthon list, if `synthon_limit` is set.
+synthon_connectors: ['U', 'Np', 'Pu', 'Am'] # Connector atoms used in synthon files.
+
+# Directory paths
+exp_dir: null # Directory to save results to. Otherwise save to the same directory as the config file.
+logging_dir: null # Set a non-default logging directory.
+combined_pseudo_res_file: null # File containing combined pseudo results. Only needed if starting after `score_synthons` steps.
+rescore_conformer_dir: null # Directory containing conformers of instantiated products during rescoring. Only needed if starting from 'get_product_poses' step.
+combined_rescore_res_file: null # Directory containing rescored scores. Only needed if starting from 'get_product_poses' step.
+full_enumeration_product_dir: null # Directory containing full library products for validation. Only needed if skipping `full_library_enum` and starting from 'full_library_conf_gen' step.
+full_enumeration_conf_dir: null # Directory containing conformers of full library products for validation. Only needed if skipping `full_library_conf_gen` and starting from 'full_library_scoring' step.
+
+# Product enumeration options
+enum_isomers: true # Whether to apply FLIPPER to enumerate stereoisomers during molecule enumeration. # TO deprecate.
+enum_max_stereocenter: 3 # Maximum number of stereocenters to consider when enumerating stereoisomers.
+warts_id_sep: "_" # Separator used by Flipper/OMEGA.
+product_id_sep: "&" # Separator used to join base molecule ids for naming products. Must be different from `warts_id_sep`.
+product_chunk_size: 1000 # Chunk size for splitting synthons for library product enumeration. Actual product isomer chunk size is ~3x this value due to the number of stereoisomers generated.
+product_conf_dir: null # Directory containing conformers of ground truth products.
+
+# Query fragmentation options
+n_fragments: [2, 3] # Numbers of fragments to generate from a query. The values also determine which reactions to include from the Enamine file (n-component reactions).
+heavy_atom_limit: 4 # Number of heavy atoms of fragments below which it will not be considered as a query fragment for matching.
+frag_connectors: ['He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn', 'Og'] # Rare atoms to label the connector atoms in the query fragments.
+cleave_cyclic_bonds: true # Whether to cleave cyclic bonds in the query molecule to generate fragments.
+
+# Conformer generation options
+synthon_omega_max_conf: 50 # Max number of conf returned for each molecule.
+synthon_omega_max_time: 120 # Max time allowed for conformer generation on one molecule.
+synthon_omega_energy: 10 # max energy above min energy conformer allowed.
+synthon_confgen_chunk_size: 500 # Chunk size for synthon conformer generation. Chunking very large synthon lists can increase efficiency with dask.
+product_omega_max_conf: 500
+product_omega_max_time: 300
+product_omega_energy: 10
+conf_file_format: oez
+
+# ROCS/scoring options
+base_cff_file: null # Path to the base color force field file. Can then add additional color features and connector atom features on top of that. If null, use the default color force field as the base cff.
+color_ff_dir: null # Directory containing color force field files.
+align_on_dummy_atom: true # Whether to enable custom color features for connector atoms.
+custom_color_ff: ['[U]', '[Np]', '[Pu]', '[Am]'] 
+custom_color_weight: -10
+custom_color_radius: 10
+color_interaction_type: gaussian # 'gaussian' or 'discrete'.
+scale_weight_per_atom: true # Whether to normalize the weight of color feature of each connector atom in synthons with multiple connector atoms.
+# The four shape/color func parameters below must be valid public methods of `oeshape.OEOverlapResults` class. See: https://docs.eyesopen.com/toolkits/python/shapetk/OEShapeClasses/OEOverlapResults.html
+optimization_shape_func: GetTanimoto # Shape score function for ROCS overlay optimization. 
+optimization_color_func: GetColorTanimoto # Color score function for ROCS overlay optimization.
+overlap_shape_func: GetTanimoto # Shape score function of in-place overlap calculation.
+overlap_color_func: GetColorTanimoto # Color score function of in-place overlap calculation.
+
+no_default_color: false # If true, score by and store the Shape score of all atoms + color score of only connector atoms + any additional custom colors (no other default color features) of synthon overlays. If only connector atom color features are included, this effectively is a "shape-only" overlay between synthons and fragments while aligning on the connector atoms.
+cross_scoring: true # Whether to run ROCS for ring-synthons against linear fragments, and vice versa. Otherwise only run ROCS for ring-synthons against ring-fragments, linear-synthons against linear-fragments.
+rocs_key_for_overlay_optimization: null # Key for the ROCS option to use for ROCS overlay optimization.
+rocs_key_for_inplace_scoring: null # Key for the ROCS option to use for in-place overlap scoring. May be different from the key for overlay optimization.
+# TO deprecate:
+ring_fragment_size_match: false # Whether to limit synthon scoring to only with query-fragments that have the same ring fragment size as the synthons.
+ring_fragment_size_match_strict: true # If true, score synthon pairs with query-fragments only if both synthons match the corresponding query-fragment ring fragment sizes. If false, score synthon pairs if only one of the synthon matches with one of the query-fragment ring size.
+additional_color_patterns: null # Additional SMARTS patterns to define custom color features. Useful for overweighing specific functional groups. e.g. [{"pattern": "OC(F)(F)F", "weight": -1, "radius": 1, "interaction": "gaussian"}].
+
+# Synthon selection options
+top_s_frac: 1 # Top_s fraction of synthons from each synthon-query ROCS scores to use for final product selection.
+synthon_combination_limit: 1000000 # Upper limit for the number of combinations to output for each synthon-frag score set. If `null`, use all synthons and generate all combinations.
+weight_factor: 0 # Factor to up-weight color_score component of the ROCS score. Currently not used.
+synthon_score_aggregation_method: simple_average # Method for aggregating synthon scores.
+mix_pseudo_res_by_proportion: true # If true, to mix the n-component reaction pseudo scores according to the proportion of the number of products. Else, simply merge and sort.
+
+# Rescoring
+# Set min and max chunk size for splitting the pseudo products for rescoring. The actual chunk size is adjusted based on the number of dask workers.
+dask_rescore_max_chunk_size: 100
+dask_rescore_min_chunk_size: 10 # Smaller than this may result in lower efficiency for ROCS.
+sep_shape_color_score: true # Whether to write out separate shape and color scores for final overlaid poses.
+
+# Dask parameters
+num_dask_workers: 1000 # Number of dask workers on SLURM
+qos: medium # SLURM QoS for dask workers
+clean_up_dask_logs: true
+dask_cluster_type: slurm # "slurm" or "local". If "local", will use all available local processors.
+
+compress_pkl_files: true # Whether to compress the result files.
+
+
+# Additional descriptions
+# Valid `tasks` include: ['full_library_enum', 'full_library_conf_gen', 'full_library_scoring', 'gen_synthon_conformers', 'score_synthons', 'instantiate_products', 'rescore_products', 'get_product_poses']. Leave at `null` to just prepare the synthon data (grouped_synthons.pkl, synthon_data.pkl). 
+# For regular queries, run ['score_synthons', 'rescore_products', 'get_product_poses'] steps.

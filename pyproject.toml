@@ -1,4 +1,90 @@
 ##################################################################
+# PACKAGING
+##################################################################
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sass_public"
+dependencies = [
+    "openeye-toolkits == 2023.1.0",
+    "dask",
+    "dask-jobqueue",
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "scikit-learn",
+    "pytest == 8.2.0",
+    "pytest-check == 2.4.0",
+    "pyyaml",
+    "seaborn",
+    "scripttest == 1.3.0",
+    "typer",
+    "ipykernel",
+    "scipy",
+]
+requires-python = ">=3.11,<3.12"
+authors = [
+    {name = "Chen Cheng", email = "cheng.chen.cc6@gene.com"},
+]
+dynamic = ["version", "readme"]
+description = "Shape-Aware Synthon Search"
+keywords = ["sass"]
+classifiers = [
+    'Intended Audience :: Developers',
+    'Natural Language :: English',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.5',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+]
+
+[project.urls]
+# replace with correct URL once a repo has been created
+Repository = "https://github.com/Genentech/SASS.git"
+
+[project.scripts]
+sass = "sass.cli:app"
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.packages.find]
+include = ["sass*"]
+namespaces = false
+
+[tool.setuptools.dynamic]
+version = {attr = "sass.__version__"}
+readme = {file = ["README.md", "HISTORY.md"], content-type="text/markdown"}
+
+##################################################################
+# TESTING
+##################################################################
+
+[tool.pytest.ini_options]
+timeout = 60
+markers = [
+    "coverage: mark a coverage test",
+]
+testpaths = [
+    "tests",
+    "sass/tests",
+]
+
+[tool.coverage.run]
+omit = [
+    "sass/examples/*.py",
+    "sass/tests/*.py",
+]
+
+##################################################################
 # LINTING
 ##################################################################
 
@@ -7,30 +93,191 @@ line-length = 120
 
 ##################################################################
 
-# The flake8 maintainers don't want to implement pyproject.toml
-# support (even though this is an approved PEP)
-# But by using pyproject-flake8 we can configure flake8 here
-# See https://github.com/csachs/pyproject-flake8
+[tool.ruff]
+# see: https://docs.astral.sh/ruff/
+target-version = "py39"
+line-length = 120
+show-fixes = true
+extend-exclude = [
+]
 
-[tool.flake8]
-max-line-length = 120
-exclude = ["__init__.py"]
-# D401 -- First line should be in imperative mood; try rephrasing
-# W503 -- Line break before binary operator (use black style)
-#### flake8-annotations
-# ANN101 -- Missing type annotation for self in method
-# ANN102 -- Missing type annotation for cls in classmethod
-# E731 -- do not assign a lambda expression, use a def
-# F401 -- ignore import but unused modules
-# F841 -- local variable * is assigned to but never used
-# E203 -- whitespace before *. Flake8 is wrong here. Use black style.
-ignore = ["D401", "F401", "W503", "ANN101", "ANN102", "E731", "F841", "E203"]
+[tool.ruff.lint]
+# see: https://docs.astral.sh/ruff/linter/#rule-selection
+select = [
+    "A",      #  flake8-builtins
+    "AIR",    #  Airflow
+    "ANN",    #  flake8-annotations
+    "ARG",    #  flake8-unused-arguments
+    "ASYNC",  #  flake8-async
+    "B",      #  flake8-bugbear
+    "BLE",    #  flake8-blind-except
+    "C4",     #  flake8-comprehensions
+    "C90",    #  mccabe
+#   "COM",    #  flake8-commas -- BLACK LINTING TAKES PRECEDENCE
+#   "CPY",    #  flake8-copyright -- RUFF PREVIEW
+    "D",      #  pydocstyle
+    "DJ",     #  flake8-django
+    "DTZ",    #  flake8-datetimez
+    "E",      #  pycodestyle
+    "EM",     #  flake8-errmsg
+    "ERA",    #  eradicate
+    "EXE",    #  flake8-executable
+    "F",      #  Pyflakes
+#   "FA",     #  flake8-future-annotations
+#   "FBT",    #  flake8-boolean-trap
+    "FIX",    #  flake8-fixme
+    "FLY",    #  flynt
+#   "FURB",   #  refurb -- RUFF PREVIEW
+    "G",      #  flake8-logging-format
+    "I",      #  isort
+    "ICN",    #  flake8-import-conventions
+    "INP",    #  flake8-no-pep420
+    "INT",    #  flake8-gettext
+    "ISC",    #  flake8-implicit-str-concat
+#   "LOG",    #  flake8-logging -- RUFF PREVIEW
+    "N",      #  pep8-naming
+    "NPY",    #  NumPy-specific
+    "PD",     #  pandas-vet
+    "PERF",   #  Perflint
+    "PGH",    #  pygrep-hooks
+    "PIE",    #  flake8-pie
+    "PL",     #  Pylint
+    "PT",     #  flake8-pytest-style
+    "PTH",    #  flake8-use-pathlib
+    "PYI",    #  flake8-pyi
+    "Q",      #  flake8-quotes
+    "RET",    #  flake8-return
+    "RSE",    #  flake8-raise
+    "RUF",    #  Ruff-specific
+    "S",      #  flake8-bandit
+    "SIM",    #  flake8-simplify
+    "SLF",    #  flake8-self
+    "SLOT",   #  flake8-slots
+    "T10",    #  flake8-debugger
+    "T20",    #  flake8-print
+    "TCH",    #  flake8-type-checking
+    "TD",     #  flake8-todos
+    "TID",    #  flake8-tidy-imports
+    "TRY",    #  tryceratops
+#   "UP",     #  pyupgrade
+    "YTT",    #  flake8-2020
+]
 
-[tool.isort]
-profile = 'black'
-multi_line_output = 3
-import_heading_stdlib = 'Standard Library'
-import_heading_firstparty = 'Genentech Library'
-import_heading_thirdparty = 'Third Party Library'
-force_sort_within_sections = true
-known_first_party = ['cdd*']
+ignore = [
+    #### flake8-annotations
+    "ANN101",    # Missing type annotation for self in method
+    "ANN102",    # Missing type annotation for cls in classmethod
+    "ANN401",    # Dynamically typed expressions
+    #### flake8-logging-format
+    "G004",      # Logging statement uses f-string
+    #### pydocstyle
+    "D203",      # One blank line required before class docstring
+    "D212",      # Multi-line docstring summary should start at the first line
+    "D401",      # First line should be in imperative mood; try rephrasing
+    "D406",      # Section name should end with a newline
+    "D407",      # Missing dashed underline after section
+    #### flake8-errmsg
+    "EM101",     # Exception must not use a string literal, assign to variable first
+    "EM102",     # Exception must not use an f-string literal, assign to variable first
+    #### flake8-type-checking
+    "TCH003",    # Move standard library import `argparse` into a type-checking block
+    #### tryceratops
+    "TRY003",    # Avoid specifying long messages outside the exception class
+    #### additional
+    "ERA001",    # Found commented-out code
+    "ANN201",    # Missing return type annotation for public function
+    "D103",      # Missing docstring in public function
+    "C901",      # function is too complex
+    "PLR0912",   # Too many branches
+    "PLR0915",   # Too many statements
+    "S301",      # `pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue
+    "PLR0913",   # Too many arguments to function call
+    "PLW0603",   # Using the global statement is discouraged.
+    "D102",      # Missing docstring in public method
+    "N806",      # Variable in function should be lowercase
+    "N802",      # Function name should be lowercase
+    "N803",      # Argument name should be lowercase
+    "TD002",     # TODO-related
+    "TD003",
+    "FIX002",
+    "B006",      # Do not use mutable data structures for argument defaults
+    "SIM108",    # Use ternary operator instead of `if`-`else`-block
+    "RET505",    # Unnecessary `else` after `return` statement. I disagree. Pairing `else` with `if` increases readability.
+    "RET504",    # Unnecessary assignment of variable before `return` statement. I disagree.
+    "RET508",    # Unnecessary `else` after `break` statement. I disagree. `if`/`else` is not parallel and readable.
+    "RET503",    # Missing explicit `return` at the end of function able to return non-`None` value
+    "S603",      # `subprocess` call: check for execution of untrusted input
+]
+
+
+[tool.ruff.lint.flake8-annotations]
+# see: https://docs.astral.sh/ruff/settings/#flake8-quotes
+allow-star-arg-any = true
+
+[tool.ruff.lint.flake8-quotes]
+# see: https://docs.astral.sh/ruff/settings/#flake8-quotes
+docstring-quotes = "double"
+
+[tool.ruff.lint.pylint]
+# see: https://docs.astral.sh/ruff/settings/#pylint
+max-branches = 12    # default: 12
+max-returns = 6      # default: 6
+max-statements = 50  # default: 50
+max-args = 6         # default: 5
+allow-magic-value-types = ["str", "bytes", "int"]  # default: ["str", "bytes"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.mccabe]
+# see: https://docs.astral.sh/ruff/rules/#mccabe-c90
+max-complexity = 10  # default: 10
+
+[tool.ruff.lint.per-file-ignores]
+# see: https://docs.astral.sh/ruff/settings/#per-file-ignores
+
+"__init__.py" = [
+    "F401",    # Imported but unused
+    "I001",    # Import block is un-sorted or un-formatted
+]
+
+"sass/cli/*.py" = [
+    "T201",    # Use of print found
+]
+
+"sass/tests/*.py" = [
+    "S101",    # Use of `assert` detected
+    "T201",    # Use of print found
+    "PLR0913",   # Too many arguments to function call
+]
+
+"sass/examples/*.py" = [
+    "T201",    # Use of print found
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "D104",    # Missing docstring in public package
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in `__init__`
+]
+
+"scripts/*.py" = [
+    "INP001",  # Add an `__init__.py`.
+    "PTH",     # use pathlib
+    "F841",    # Local variable * is assigned to but never used
+    "S607",    # Starting a process with a partial executable path
+]
+
+[tool.ruff.lint.isort]
+# add additional in-house packages here so that isort
+# will correctly put them in the 3rd sorting block
+known-first-party = [
+  "sass*",
+]
+
+##################################################################
+
+[tool.mypy]
+ignore_missing_imports = "True"
+warn_return_any = "True"
