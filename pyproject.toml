@@ -3,27 +3,25 @@
 ##################################################################
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "sass_public"
 dependencies = [
-    "openeye-toolkits == 2023.1.0",
+    # openeye-toolkits comes from the OpenEye index. For pip, add it as in config/pip.conf.
+    # Pinned because ROCS scores shift slightly between releases. Regenerate
+    # tests/data/expected_rocs_scores.json when this pin changes.
+    "openeye-toolkits==2026.1.0",
     "dask",
     "dask-jobqueue",
     "pandas",
     "numpy",
     "matplotlib",
     "scikit-learn",
-    "pytest == 8.2.0",
-    "pytest-check == 2.4.0",
     "pyyaml",
     "seaborn",
-    "scripttest == 1.3.0",
     "typer",
-    "ipykernel",
-    "scipy",
 ]
 requires-python = ">=3.11,<3.12"
 authors = [
@@ -31,22 +29,17 @@ authors = [
 ]
 dynamic = ["version", "readme"]
 description = "Shape-Aware Synthon Search"
+license = "Apache-2.0"
 keywords = ["sass"]
 classifiers = [
+    'Development Status :: 2 - Pre-Alpha',
     'Intended Audience :: Developers',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.5',
-    'Programming Language :: Python :: 3.6',
-    'Programming Language :: Python :: 3.7',
-    'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
 ]
 
 [project.urls]
-# replace with correct URL once a repo has been created
 Repository = "https://github.com/Genentech/SASS.git"
 
 [project.scripts]
@@ -60,9 +53,42 @@ zip-safe = false
 include = ["sass*"]
 namespaces = false
 
+[tool.setuptools.package-data]
+# List any new package resource here.
+sass = ["config_template.yml", "libraries.yml"]
+
 [tool.setuptools.dynamic]
 version = {attr = "sass.__version__"}
-readme = {file = ["README.md", "HISTORY.md"], content-type="text/markdown"}
+readme = {file = ["README.md"], content-type="text/markdown"}
+
+##################################################################
+# Development environment
+##################################################################
+
+[[tool.uv.index]]
+name = "openeye"
+url = "https://pypi.anaconda.org/OpenEye/simple/"
+explicit = true
+
+[tool.uv.sources]
+openeye-toolkits = { index = "openeye" }
+
+[dependency-groups]
+dev = [
+    "black==25.12.0",
+    "mypy==1.19.1",
+    "pre-commit==4.5.1",
+    "pytest==9.0.2",
+    "pytest-check==2.6.2",
+    "pytest-cov==7.0.0",
+    "pytest-timeout==2.4.0",
+    "ruff==0.14.10",
+    "scripttest==2.0.post1",
+    # analysis notebooks and scripts:
+    "ipykernel",
+    "scipy",
+    "tqdm",
+]
 
 ##################################################################
 # TESTING
@@ -71,18 +97,17 @@ readme = {file = ["README.md", "HISTORY.md"], content-type="text/markdown"}
 [tool.pytest.ini_options]
 timeout = 60
 markers = [
-    "coverage: mark a coverage test",
+    "integration: end-to-end pipeline run against the synthetic test library (minutes)",
 ]
 testpaths = [
     "tests",
-    "sass/tests",
 ]
 
 [tool.coverage.run]
-omit = [
-    "sass/examples/*.py",
-    "sass/tests/*.py",
-]
+omit = []
+
+[tool.coverage.report]
+omit = []
 
 ##################################################################
 # LINTING
@@ -95,7 +120,7 @@ line-length = 120
 
 [tool.ruff]
 # see: https://docs.astral.sh/ruff/
-target-version = "py39"
+target-version = "py311"
 line-length = 120
 show-fixes = true
 extend-exclude = [
@@ -117,6 +142,7 @@ select = [
 #   "CPY",    #  flake8-copyright -- RUFF PREVIEW
     "D",      #  pydocstyle
     "DJ",     #  flake8-django
+#   "DOC",    #  pydoclint -- RUFF PREVIEW
     "DTZ",    #  flake8-datetimez
     "E",      #  pycodestyle
     "EM",     #  flake8-errmsg
@@ -124,17 +150,18 @@ select = [
     "EXE",    #  flake8-executable
     "F",      #  Pyflakes
 #   "FA",     #  flake8-future-annotations
+    "FAST",   #  FastAPI
 #   "FBT",    #  flake8-boolean-trap
     "FIX",    #  flake8-fixme
     "FLY",    #  flynt
-#   "FURB",   #  refurb -- RUFF PREVIEW
+    "FURB",   #  refurb
     "G",      #  flake8-logging-format
     "I",      #  isort
     "ICN",    #  flake8-import-conventions
     "INP",    #  flake8-no-pep420
     "INT",    #  flake8-gettext
     "ISC",    #  flake8-implicit-str-concat
-#   "LOG",    #  flake8-logging -- RUFF PREVIEW
+    "LOG",    #  flake8-logging
     "N",      #  pep8-naming
     "NPY",    #  NumPy-specific
     "PD",     #  pandas-vet
@@ -155,7 +182,7 @@ select = [
     "SLOT",   #  flake8-slots
     "T10",    #  flake8-debugger
     "T20",    #  flake8-print
-    "TCH",    #  flake8-type-checking
+    "TC",     #  flake8-type-checking
     "TD",     #  flake8-todos
     "TID",    #  flake8-tidy-imports
     "TRY",    #  tryceratops
@@ -165,8 +192,6 @@ select = [
 
 ignore = [
     #### flake8-annotations
-    "ANN101",    # Missing type annotation for self in method
-    "ANN102",    # Missing type annotation for cls in classmethod
     "ANN401",    # Dynamically typed expressions
     #### flake8-logging-format
     "G004",      # Logging statement uses f-string
@@ -180,7 +205,7 @@ ignore = [
     "EM101",     # Exception must not use a string literal, assign to variable first
     "EM102",     # Exception must not use an f-string literal, assign to variable first
     #### flake8-type-checking
-    "TCH003",    # Move standard library import `argparse` into a type-checking block
+    "TC003",     # Move standard library import `argparse` into a type-checking block
     #### tryceratops
     "TRY003",    # Avoid specifying long messages outside the exception class
     #### additional
@@ -202,9 +227,9 @@ ignore = [
     "FIX002",
     "B006",      # Do not use mutable data structures for argument defaults
     "SIM108",    # Use ternary operator instead of `if`-`else`-block
-    "RET505",    # Unnecessary `else` after `return` statement. I disagree. Pairing `else` with `if` increases readability.
-    "RET504",    # Unnecessary assignment of variable before `return` statement. I disagree.
-    "RET508",    # Unnecessary `else` after `break` statement. I disagree. `if`/`else` is not parallel and readable.
+    "RET505",    # Unnecessary `else` after `return` statement
+    "RET504",    # Unnecessary assignment of variable before `return` statement
+    "RET508",    # Unnecessary `else` after `break` statement
     "RET503",    # Missing explicit `return` at the end of function able to return non-`None` value
     "S603",      # `subprocess` call: check for execution of untrusted input
 ]
@@ -241,34 +266,6 @@ max-complexity = 10  # default: 10
     "I001",    # Import block is un-sorted or un-formatted
 ]
 
-"sass/cli/*.py" = [
-    "T201",    # Use of print found
-]
-
-"sass/tests/*.py" = [
-    "S101",    # Use of `assert` detected
-    "T201",    # Use of print found
-    "PLR0913",   # Too many arguments to function call
-]
-
-"sass/examples/*.py" = [
-    "T201",    # Use of print found
-    "D100",    # Missing docstring in public module
-    "D101",    # Missing docstring in public class
-    "D102",    # Missing docstring in public method
-    "D103",    # Missing docstring in public function
-    "D104",    # Missing docstring in public package
-    "D105",    # Missing docstring in magic method
-    "D107",    # Missing docstring in `__init__`
-]
-
-"scripts/*.py" = [
-    "INP001",  # Add an `__init__.py`.
-    "PTH",     # use pathlib
-    "F841",    # Local variable * is assigned to but never used
-    "S607",    # Starting a process with a partial executable path
-]
-
 [tool.ruff.lint.isort]
 # add additional in-house packages here so that isort
 # will correctly put them in the 3rd sorting block
@@ -281,3 +278,4 @@ known-first-party = [
 [tool.mypy]
 ignore_missing_imports = "True"
 warn_return_any = "True"
+

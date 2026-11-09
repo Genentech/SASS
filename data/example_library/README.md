@@ -1,1 +1,1 @@
-Provided here is a set of example reactions and synthons. Users should use their own reaction/synthon data that conforms to the format shown in the examples.
+Provided here is a set of example reactions and synthons. Users should use their own reaction/synthon data that conforms to the format shown in the examples. Column names follow the vendor convention used in the code: `synton_id` and `synton#`.

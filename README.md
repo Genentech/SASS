@@ -6,168 +6,195 @@
 <a href="https://mypy-lang.org/"><img alt="lint: mypy" src="https://img.shields.io/badge/linting-mypy-d24b4b.svg"></a>
 </p>
 
-Last updated: 2024-11-25
+Last updated: 2026-11-03
 
-This repo contains the code for running synthon-based shape queries, as described in [Shape-Aware Synthon Search (SASS) for virtual screening of synthon-based chemical spaces](https://pubs.acs.org/doi/full/10.1021/acs.jcim.3c01865).
+This repo contains the code for running combinatorial, synthon-based ROCS queries, as described in [Shape-Aware Synthon Search (SASS) for virtual screening of synthon-based chemical spaces](https://pubs.acs.org/doi/full/10.1021/acs.jcim.3c01865). The current version contains major improvements over what is described in the paper, including searching reactions with 3 or more components, and much more streamlined parallelization.
 
 <center>
     <img src="data/SASS.jpg?raw=true" width="500">
 </center>
 
-SASS is a synthon-based virtual screening method that carries out shape similarity searches in the synthon space instead of the enumerated product space. Queries are fragmented, and synthons are scored against query fragments to prioritize top synthon combinations. A tiny fraction of the full library is then instantiated and rescored, thereby avoiding full enumeration/scoring and significantly accelerating large-scale, shape-based virtual screening.
+SASS is a synthon-based virtual screening method that carries out shape similarity searches in the synthon space instead of the enumerated product space. Queries are fragmented, query fragments are scored against synthons, and top synthon combinations are selected. A tiny fraction of the full library is then instantiated and rescored, thereby avoiding full enumeration/scoring and significantly accelerating large-scale, shape-based virtual screening.
+
+**This is a reference implementation.** It does not run off the shelf: you configure it for your own SLURM cluster and your own synthon library first (see [Configure for your site](#configure-for-your-site)).
 
 ## Setup
 
-### Create a virtual conda environment and install the package
+### Install
 
+SASS uses the OpenEye toolkits, which are installed from OpenEye's package index.
+
+```bash
+git clone https://github.com/Genentech/SASS.git
+cd SASS
+
+# uv
+uv venv
+uv sync --group dev
+source .venv/bin/activate
+
+# or pip, with the OpenEye index from config/pip.conf
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install --extra-index-url https://pypi.anaconda.org/OpenEye/simple/ -e .
 ```
-# clone the git repo
-conda create -n <env name> python=3.11
-conda activate <env name>
-pip install -e .
+
+An editable install is recommended, because configuring SASS means editing two files in the package.
+
+### OpenEye license
+
+SASS requires a valid OpenEye license. Set its path in your environment:
+
+```bash
+export OE_LICENSE=/path/to/oe_license.txt
 ```
 
-### Set OpenEye license path
+## Configure for your site
 
-`SASS` uses OpenEye Informatics and Modeling toolkits, which requires a valid OpenEye license. If not set already, set the license file path as an environment variable called `OE_LICENSE`.
-  ```
-  export OE_LICENSE=...
-  ```
+### 1. Your cluster
 
-### Configure compute cluster
-`SASS` uses `dask` library for parallelization. In this package, `dask` is configured to run on a SLURM cluster or on a local machine. Users should configure `dask` for other types of schedulers, and double check the QoS names of their SLURM scheduler.
+SASS runs its workers as SLURM jobs through `dask-jobqueue`. Cluster presets live in `DASK_SLURM_CONFIG` in [`sass/cluster/slurm.py`](sass/cluster/slurm.py). Replace the `my_cluster` example with your own:
 
+```python
+DASK_SLURM_CONFIG = {
+    "my_cluster": {
+        "partition": "cpu",
+        "queue_time_map": {
+            "1d": {"walltime": "1-0", "lifetime": "1435m", "lifetime-stagger": "4m"},
+        },
+        "default_qos": "1d",
+        "job_extra_directives": ["--account=my_project"],
+    },
+}
+```
+
+- `queue_time_map` holds named walltime presets for worker jobs. The config key `qos` picks one, and `default_qos` is used otherwise. `lifetime` should be a few minutes shorter than `walltime`, so dask retires a worker cleanly before SLURM kills it.
+- `job_extra_directives` are extra `#SBATCH` lines for worker jobs, such as a QoS or an account.
+- `cluster_name` in [`sass/config_template.yml`](sass/config_template.yml) defaults to `my_cluster`. If you rename the preset, change it there too. A site with several clusters can let SASS detect which one it is on; see [guide/internals.md](guide/internals.md#locating-the-library-and-the-cluster).
+
+To run without SLURM, on the current node only, set `dask_cluster_type: local`.
+
+### 2. Your synthon library
+
+SASS searches a synthon library: a synthon file and a reaction file in the format shown in [`data/example_library`](data/example_library), plus artifacts that SASS builds from them once. Build them with one run:
+
+```yaml
+tasks: ['build_synthon_id_index', 'group_synthon_data', 'generate_synthon_conformers']
+```
+
+See [guide/tasks.md](guide/tasks.md) for these tasks and [guide/configuration.md](guide/configuration.md#the-synthon-library) for the library keys. Then register the library in [`sass/libraries.yml`](sass/libraries.yml), so a run config only needs its name (`synthon_library: my_library`). The shipped file is a template with a commented example entry.
+
+For a one-off library, you can instead leave `synthon_library` unset and set the library keys (`synthon_conf_dir`, `synthon_data_file`, `grouped_synthon_file`, `synthon_file`, `reaction_file`, `synthon_id_index`, `single_frag_synthon_conf_dir`) in the run config. Do not mix the two, to avoid mismatched library files.
+
+### 3. Check
+
+```bash
+sass list-libraries
+```
+
+lists every registered library, what it resolves to on this machine, and whether its files are present.
 
 ## Usage
-* Create an experiment directory to hold the results (and intermediate files). 
-  * Intermediate files can be very large (>200 GB), and will be removed after a run is finished. 
-* Save a copy of the config file (`./sass/config_template.yml` to your experiment directory. 
-* Navigate to your experiment directory.
-* Edit the config file to specify your query molecule, database, etc.
-* Run
 
-  ```
-  sass run --config </path/to/config>
-  ```
+### Quick start
 
-A query run with the full Enamine 2024-02 library (60B products) should take ~1-4 hr on 1000 cpus, depending on the size of the query molecule.
+Once your cluster and library are configured, a query molecule and a library name are all you have to supply:
 
-After a run is completed, an SDF file containing the query molecule and the best overlay poses of the top products (`rescore_top_<n>_mol_poses.sdf`) will be generated. The 1st molecule is the query molecule, and the rest are **NOT** sorted in descending ROCS scores (you can sort by scores in MOE/mdb when visualizing).
+```bash
+cd /path/to/an/empty/results/directory
+sbatch --mem=16G --time=5:00:00 sass run -q query.sdf --library my_library
+```
 
+Output lands in the directory you launched from. Add `--set KEY=VALUE` (repeatable) to change any config key without editing a config file:
+
+```bash
+sass run -q query.sdf --library my_library --set top_m=500000 --set num_workers=200
+```
+
+For repeated runs or advanced options, use a config file. Start from a fresh copy of [`sass/config_template.yml`](sass/config_template.yml):
+
+```bash
+sass run --config /path/to/config.yml
+```
+
+Precedence is **CLI > config file > template default**. Everything a run actually used is written to `sass_<timestamp>.yml` beside the results, so a run can be reproduced from its own output.
+
+### Details
+
+* **Run SASS on a fast scratch filesystem.** The intermediate files take up about 10 GB of disk space, and are removed after a run finishes.
+* A config missing a key (likely copied from an old run) is refused at startup, listing every missing key with its default.
+* With default settings on reasonably modern CPUs, a query against a commercial library of about 100 billion products takes 0.5-1 hr on 1000 CPUs, depending on the size of the query molecule.
+* After a run completes, an SDF file containing the query molecule and the best overlay poses of the top products (`rescore_top_<n>_mol_poses.sdf`) is written. The first molecule is the query, and the rest are **not** sorted by ROCS score.
+* **Save the query 3D conformer in SDF V2000 format.** The OpenEye toolkits may have problems reading SDF V3000 files.
 
 ## Key terms
 
 - **synthons**: Building blocks that can be directly connected to form products. Synthons are different from reactants in that synthons have labeled connector atoms, and have been modified from the reactants (e.g. leaving groups removed).
 - **connector atom**: Dummy atoms (e.g. U, Np, Pu, Am) used to designate connecting vectors where two compatible synthons join.
 - **chemical space**: All molecules generated from exhaustively instantiating all combinations of compatible synthons.
-- **query**: The input molecule for which shape-similar molecules in the chemical space is to be searched.
+- **query**: The input molecule for which shape-similar molecules in the chemical space are to be searched.
 - **query fragment**: Fragments of a query molecule, generated by cleaving bonds of the query.
 
 ## Tasks
 
-The overall workflow of SASS is shown below: 
+A run executes the `tasks:` listed in the config. For a regular query that is:
+
+```yaml
+tasks: ['score_synthons', 'rescore_products', 'write_product_poses']
+```
 
 <center>
     <img src="data/SASS_workflow.png?raw=true" width="700">
 </center>
 
-### Valid tasks:
+There are thirteen tasks and three run modes (regular query, single-fragment query, full-library enumeration). See **[guide/tasks.md](guide/tasks.md)** for what each one does and which to combine.
 
-- **full_library_enum**: Exhaustively enumerate the chemical space defined by the input synthons.
-  - input: Reaction and synthon files.
-  - output: Molecule file(s) in `oeb.gz` format.
+## Documentation
 
-- **full_library_conf_gen**: Generate conformers of the enumerated library using OMEGA. The parameters for OMEGA is defined in the config file.
-  - input: molecule files.
-  - output: conformer files in `oez` format.
+| | |
+|---|---|
+| **[guide/tasks.md](guide/tasks.md)** | the thirteen tasks, and the three run modes |
+| **[guide/configuration.md](guide/configuration.md)** | every config key, grouped |
+| **[guide/tuning.md](guide/tuning.md)** | what to *set* things to: `top_m`, recall, OMEGA quality, worker memory |
+| **[guide/internals.md](guide/internals.md)** | package layout, parallelization strategy, what is exact and what is approximate |
+| **[guide/testing.md](guide/testing.md)** | the synthetic test library, and how to add an end-to-end test |
+| **[CHANGELOG.md](CHANGELOG.md)** | changes between public releases |
 
-- **full_library_scoring**: Score the conformer database against a given query molecule using ROCS.
-  - input: conformer files; query molecule.
-  - output: score list written to file (`pkl`).
-
-- **gen_synthon_conformers**: Generate conformers of the synthons, which is different from generating conformers for full-products, because the former involves forming minimal products, conformation sampling, and restoring original connector atoms.
-  - input: synthon SMILES.
-  - output: conformer files in `oez` format.
-
-- **score_synthons**: Score synthons against query fragments (using ROCS), aggregate individual synthon scores to generate pseudo-product scores, combine the `top_m` pseudo-products from different reactions. `dask`: Each dask worker processes the content of one `fragment_order` and does synthon scoring and score aggregation. Scores from all `fragment_orders` are then merged into one file.
-  - input: synthon conformers; query fragments.
-  - output: combined pseudo-product file for all reactions.
-  - NOTE: conceptually, synthon scores are organized in the following hierachy. A valid product can be formed by the combining one synthon from each of the `synthon_set`s under one `fragment_order`.
-    ```
-    {
-        rxn_id1: {
-            fragment_set1: {
-                fragment_order1: {
-                    synthon_set1: [score1, score2, score3 ...],
-                    synthon_set2: [...],
-                    ...
-                },
-                ...
-            },
-            ...
-        },
-        ...
-    }
-    ```
-
-      - `rxn_id`: Each reaction in the chemical space.
-      - `fragment_set`: Each valid fragment set generated by fragmenting the query.
-      - `fragment_order`: Usually there are multiple ways to order a fragment set to score against a set of `synthon_set`s. All valids orders of scoring are considered.
-      - `synthon_set`: A set of synthons belonging to the same component of a multi-component reaction.
-
-- **instantiate_products**: Instantiate the top pseudo-products. This step cannot be combined with the `rescore_products` step, because `rescore_products` already includes `instantiate_products`. This task is used when the user just wants the instantiated `top_m` pseudo products and does not need the ROCS scores of those products.
-  - input: Pseudo-products file.
-  - output: Molecule file(s).
-  
-- **rescore_products**: Instantiate the top pseudo-products, generate conformers of the instantiated products, score conformers against a given query molecule using ROCS. Scores from all chunks are merged into one file (`top_m` products/scores are kept).
-  - input: Pseudo-products file, query molecule.
-  - output: Real ROCS scores saved to file; conformer file(s) are kept for `get_product_poses`.
-
-- **get_product_poses**: Score top re-scored products against a query molecule using ROCS and write out the best overlay poses for visualization. Note that the `rescore_products` step itself only outputs the numerical scores and product ids, not the poses.
-  - input: Top product conformers, query molecule.
-  - output: An SDF file containing the query molecule and best overlay poses of top products.
-
-
-## Modes
-
-- For **regular SASS queries**: run the following tasks: `score_synthons`, `rescore_products`, `get_product_poses`. If synthon conformers have not be pre-generated, run `gen_synthon_conformers` first. If one intends to re-score using a different metric (i.e. not using ROCS), one can run just `score_synthons` and `instantiate_products` to obtain the `top_m` instantiated products.
-  
-- To **validate SASS performance**, the ground truth needs to be generated by running the following tasks: `full_library_enum`, `full_library_conf_gen`, `full_library_scoring`.
-
-  - For **validation**, one only needs to run `score_synthons` (re-scoring is not needed), and the combined pseudo-product scores can be used directly to calculate the recall (comparing to the ground truth).
-
-
-## Parallelization and time/compute resource considerations
-
-Given the data volume and independence of most results, parallelization in computing is highly desirable. Currently, parallelization is achieved using `dask` for all steps.
-
-- **library product enumeration**: Because exhaustive product enumeration from sets of compatible synthons uses the OpenEye `OELibraryGen` object, which itself is likely already quite optimized, it is inefficient to loop through the synthons one-by-one. Instead, for an $n \times m \times k \times ...$ sized library, only the 1st "dimension" is split, i.e. each dask worker only enumerates $n[i: i+c] \times m \times k \times ...$ products.
-  - Tautomer selection and isomer enumeration (FLIPPER) is done on each product.
-  - The split on the 1st dimension for each reaction is dynamically determined to fit the target product chunk size. e.g. for a two-component reaction of $50 \times 100$ and a target chunk size of $1000$, the 1st dimension is split 5-fold with 10 synthons each (i.e. a total of 5 tasks of $10 \times 100 = 1000$)
-  - In cases where the actual chunk size exceeds the target chunk size even when the 1st "dimension" is split to the smallest possible chunk (e.g. for a three-component reaction of $100 \times 100 \times 100$, even $1 \times 100 \times 100 = 10000$ is larger than the target chunk size of $1000$), the oversized chunk is still instantiated on 1 worker, but split to the target chunk size when writing to file. Even thought this does not improve the efficiency of library product instantiation, having even chunk sizes greatly improves the parallelizaiton efficiency for library product conformer generation and scoring.
-  - It is recommended to set the target product chunk size to be at least 1000. Too small chunk size leads to `dask` error. The actual number of isomers per chunk will be ~3000 due to multiple isomers per product.
-
-- **product conformer generation**: Each dask worker processes one product chunk (see above).
-
-- **product scoring (ROCS)**: Each dask worker processes one conformer chunk (see above).
-
-- **synthon conformer generation**: Due to uneven size of different reaction synthons (ranging from 1 to 50000) and relatively small number of reactions (~200), parallelization on reaction level leads to very different runtime for each dask worker. To alleviate this, synthon lists are split to a target size and fed to each dask worker. Conformer chunks are written to files, and the head node merges all chunks based on the file name (designating which reaction and which component) at the end. While it could be more efficient to use more workers to merge chunks, `synthon conformer generation` is seldom done, so the shortcoming is acceptable.
-
-- **synthon scoring**: Scoring is parallelized on the `fragment_order` level. For the full Enamine 2020-09 library with a typical query molecule, the number of total `fragment_order` is on the order of 1e4, which is suitable with ~1000 dask workers. Each task of synthon vs query fragment scoring is not further split.
-
-- **singleton product instantiation**: Unlike **library product enumeration**, instantiating the SASS-selected pseudo-products does not require enumeration of all combinations of compatible synthons, but only 1 product from each of the aggregated synthon-id. `OELibraryGen` objects were used, but only with 1 synthon at each reactant position (and 1 expected product per function call).
-  - It is recommended to set the chunk size to be processed by each dask worker to be no smaller than 1000. Too small chunk size leads to `dask` error. The instantiated products are further split into the desired chunk size (usually 10-100/chunk) for downstream rescoring.
-
-- **get_product_poses**: Each dask worker looks into each conformer chunk and fetches a subset of conformers based on a set of ids, does overlay with reference molecule, and write out the pose files. The head node then aggregate and deduplicate the poses into one file.
-
+**`top_m` is the most expensive parameter in SASS.** Do not exceed 2,000,000 without reading [guide/tuning.md](guide/tuning.md). It drives rescore runtime, worker memory, and search depth at once. SASS estimates the memory peaks at startup and warns if they will not fit.
 
 ## Advanced usage
-* **Restarting from intermediate steps**: SASS writes out and stores the following intermediate files. One can specify the paths to those files/folders to restart from an intermediate step.
+
+* **Single-fragment query mode**: instead of matching a whole molecule, score the synthon library against *one* fragment with a defined attachment point. This is useful for growing or replacing a substituent while the rest of the molecule stays fixed.
+
+  * **The query must carry a `[U]` connector atom** marking where the fragment attaches. Typically you take a whole 3D molecule and break one acyclic bond at the position you want to vary, keeping the piece you want to search and capping the cut with `[U]`. The connector must be a real atom with coordinates, since the alignment uses the bond vector, not just the shape.
+  * OMEGA cannot generate conformers for a molecule containing `[U]`, so build the 3D structure *first* and substitute the connector afterwards.
+  * Run the single-fragment tasks; they cannot be mixed with the whole-molecule tasks in one run:
+
+    ```
+    sass run -q fragment.sdf --set 'tasks=[score_single_fragments, write_single_fragment_poses]'
+    ```
+
+  * This needs `single_frag_synthon_conf_dir`, a separate set of conformers aligned on the connector bond. `sass list-libraries` reports which libraries contain it. To build one, run `generate_single_fragment_conformers` against that library's regular synthon conformers.
+  * `align_on_bond` and `extend_bond_distance` must match the values the conformers were generated with. The stored conformers carry a second dummy atom placed at that distance, and the query is given one at run time to match. Record the values in the library's `single_frag_geometry` entry; `sass list-libraries` prints them. A mismatch is refused at startup, measured from a sampled conformer file rather than taken from the registry, so it holds for unregistered libraries too. Otherwise a mismatch would be silent: the overlay still runs and still ranks, against a bond vector that does not line up.
+
+* **Restarting from intermediate steps**: SASS writes out and stores the following intermediate files. You can specify the paths to those files/folders to restart from an intermediate step.
   * Combined pseudo result file: contains `top_m` synthon combinations to be rescored with ROCS.
-  * Combined rescore result file: contains ROCS scores of `top_m` products, can be used to generate overlay poses.
-  * (Only if `get_product_poses` step has not been run): Conformers of `top_m` products, used to generate overlay poses.
+  * Combined rescore result file: contains ROCS scores of `top_m` products, and can be used to generate overlay poses.
 
-* **Using custom color force field files**: Users can generate their own color FF file and provide the path under `base_cff_file` key in the config file. This file will override the default Mills-Dean force field used by ROCS. This base color FF will be extended with appropriate connector atom color features.
-  * Users can also re-use an entire set of color FF files by providing the path to the directory under `color_ff_dir` key.
+* **Using custom color force field files**: You can generate your own color FF file and provide its path under the `base_cff_file` key in the config file. This file overrides the default Mills-Dean force field used by ROCS. The base color FF is extended with appropriate connector atom color features.
+  * You can also re-use an entire set of color FF files by providing the path to the directory under the `color_ff_dir` key.
 
-* **Custom scoring in ROCS**: ROCS uses TanimotoCombo score by default. Users can specify the shape and color score functions to use for overlay optimization and scoring by modifying the `[optimization/overlap]_[shape/color]_func` keys in the config file. The parameters must be valid public methods of [`oeshape.OEOverlapResults`](https://docs.eyesopen.com/toolkits/python/shapetk/OEShapeClasses/OEOverlapResults.html) class. 
+* **Custom scoring in ROCS**: ROCS uses the TanimotoCombo score by default. You can specify the shape and color score functions to use for overlay optimization and scoring by modifying the `[optimization/overlap]_[shape/color]_func` keys in the config file (single-fragment scoring always uses TanimotoCombo). The values must be valid public methods of the [`oeshape.OEOverlapResults`](https://docs.eyesopen.com/toolkits/python/shapetk/OEShapeClasses/OEOverlapResults.html) class.
+
+## Testing
+
+```bash
+pytest -m "not integration"   # unit tests
+pytest -m integration         # the whole pipeline on a small synthetic library, on a local dask cluster
+```
+
+Both need `OE_LICENSE`. See [guide/testing.md](guide/testing.md).
+
+## Contributing
+
+Issues and pull requests are welcome.
