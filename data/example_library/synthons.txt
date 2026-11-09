@@ -1,4 +1,4 @@
-SMILES	synthon_id	synthon#	reaction_id
+SMILES	synton_id	synton#	reaction_id
 CCCCCCC([U])=O	 1	1	rxn1
 CCCCC([U])=O	 2	1	rxn1
 O=C([U])C1CCC1	 3	1	rxn1

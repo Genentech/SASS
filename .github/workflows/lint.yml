@@ -1,0 +1,20 @@
+# Lint only. The tests need an OpenEye license, so they are not run here.
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # Same versions as the dev dependency group in pyproject.toml.
+      - run: pip install ruff==0.14.10 black==25.12.0
+      - run: ruff check sass tests
+      - run: black --check sass tests

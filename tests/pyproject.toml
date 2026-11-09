@@ -25,11 +25,12 @@ select = [
     "PL",  #  Pylint
     "PT",  #  flake8-pytest-style
     "RUF", #  Ruff-specific
-    "TCH", #  flake8-type-checking
+    "TC",  #  flake8-type-checking
 ]
 
 ignore = [
-    "PLR0913",   # Too many arguments to function call
+    #### pylint
+    "PLC0415",    # `import` should be at the top-level of a file
 ]
 
 [tool.ruff.lint.pylint]

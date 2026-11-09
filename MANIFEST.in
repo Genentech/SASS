@@ -1,0 +1,10 @@
+# include
+include README.md
+include sass/config_template.yml
+include sass/libraries.yml
+
+# exclude
+recursive-exclude * __pycache__
+global-exclude *.pyc
+global-exclude *.rst
+prune tests

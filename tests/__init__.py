@@ -1,8 +1,5 @@
-"""
-(C) 2023 Genentech. All rights reserved.
+"""Test file for sass module"""
 
-Test file for sass module
-"""
 import pathlib
 import sys
 import typing
@@ -25,6 +22,8 @@ def run_help(pyscript: str) -> None:
 
     script_base_name = pathlib.Path(pyscript).name[:-3]
     help_file_name = pathlib.Path("docs", "text", script_base_name + "-help.txt")
+    if not help_file_name.parent.is_dir():
+        return  # no Sphinx docs in this tree to include the help text in
     with pathlib.Path(help_file_name).open("w", encoding="utf8") as help_file:
         for line in help_desc:
             help_file.write(line + "\n")

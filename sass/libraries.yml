@@ -1,0 +1,34 @@
+# Synthon library registry. This is a template: add your own data roots and libraries.
+#
+# `synthon_library: <name>` in a run config resolves through this file. Each entry names its
+# artifacts relative to a data root. The SASS library tasks build them (see guide/tasks.md).
+#
+# Run `sass list-libraries` to check what this file resolves to on the current machine.
+
+#: Candidate data roots, in order. The first that exists wins. `$SASS_DATA_ROOT` overrides this
+#: list. The optional `host` names the cluster (a key of `DASK_SLURM_CONFIG` in
+#: sass/cluster/slurm.py) that mounts the root, so SASS can detect it.
+data_roots: []
+#  - path: /path/to/SASS_data
+
+#: Short names that each point to one concrete entry. Runs log the concrete entry, not the alias.
+aliases: {}
+#  my_library: my_library_202601
+
+#: `hosts:` is optional, for sites with several clusters: the clusters an entry is present on.
+#: `single_frag_synthon_conf_dir` and `synthon_id_index` are optional.
+libraries: {}
+#  my_library_202601:
+#    description: My synthon library, 2026-01. 10 reactions, 50,000 synthons.
+#    synthon_conf_dir: my_library_202601/synthon_conformers
+#    synthon_id_index: my_library_202601/synthon_id_index.pkl
+#    synthon_data_file: my_library_202601/synthon_data.pkl
+#    grouped_synthon_file: my_library_202601/grouped_synthons.pkl
+#    synthon_file: my_library_202601/synthons.txt
+#    reaction_file: my_library_202601/reaction_SMARTS.txt
+#    single_frag_synthon_conf_dir: my_library_202601/single_frag_synthon_conformers
+#    #: Geometry the single-fragment conformers were built with. A run that scores them must
+#    #: use the same values. Mismatches are refused at startup.
+#    single_frag_geometry:
+#      align_on_bond: true
+#      extend_bond_distance: 3

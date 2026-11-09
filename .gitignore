@@ -11,8 +11,6 @@ __pycache__/
 env/
 build/
 develop-eggs/
-conda_dist/
-conda_recipe/meta.yaml
 dist/
 downloads/
 eggs/
@@ -73,9 +71,6 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# pyenv
-.python-version
-
 # celery beat schedule file
 celerybeat-schedule
 
@@ -118,7 +113,6 @@ ENV/
 # vi
 .*.swp
 
-# local testing
+# Test outputs. The integration tests keep theirs on disk so failures are inspectable.
 test-outputs/
-test_sass_outputs/
-local_log.txt
+tests/_output/
